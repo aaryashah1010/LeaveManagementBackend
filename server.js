@@ -25,10 +25,12 @@ const authLimiter = rateLimit({
 
 const authRoutes = require('./routes/auth');
 const leaveRoutes = require('./routes/leaves');
+const employeeRoutes = require('./routes/employees'); // <-- MODULE 2: Imported new routes
 
 // 4. Apply the strict limiter ONLY to auth routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/employees', employeeRoutes); // <-- MODULE 2: Registered new routes
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'Backend is running securely.' });
