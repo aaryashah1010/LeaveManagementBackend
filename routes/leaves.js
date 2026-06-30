@@ -11,6 +11,28 @@ router.post('/apply', verifyToken, async (req, res) => {
     try {
         const start = new Date(startDate);
         const end = new Date(endDate);
+
+        // Remove time part so only dates are compared
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+
+        // Validation 1: Start date cannot be in the past
+        if (start < today) {
+            return res.status(400).json({
+                message: 'You cannot apply for leave in the past.'
+            });
+        }
+
+        // Validation 2: End date cannot be before start date
+        if (end < start) {
+            return res.status(400).json({
+                message: 'End date cannot be before start date.'
+            });
+        }
+
         const diffTime = Math.abs(end - start);
         const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 

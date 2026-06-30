@@ -3,7 +3,7 @@ const pool = require('./db');
 
 async function createLeavesTable() {
   try {
-    console.log('Connecting to database on port 5433...');
+    console.log('Connecting to database on port 5432...');
     
     await pool.query(`
       CREATE TABLE IF NOT EXISTS leaves (
