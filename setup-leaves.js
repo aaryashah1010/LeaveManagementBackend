@@ -3,8 +3,7 @@ const pool = require('./db');
 
 async function createLeavesTable() {
   try {
-    console.log('Connecting to database on port 5433...');
-    
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS leaves (
         id SERIAL PRIMARY KEY,
@@ -15,13 +14,31 @@ async function createLeavesTable() {
         days INTEGER NOT NULL,
         reason TEXT,
         status VARCHAR(20) DEFAULT 'Pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        manager_comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP
       );
     `);
-    
-    console.log('✅ Leaves table successfully created!');
+
+    // Update older databases safely
+    await pool.query(`
+      ALTER TABLE leaves
+      ADD COLUMN IF NOT EXISTS manager_comment TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE leaves
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE leaves
+      ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
+    `);
+
+
   } catch (error) {
-    console.error('❌ Error creating table:', error);
+    console.error('❌ Error creating/updating table:', error);
   } finally {
     await pool.end();
   }

@@ -12,7 +12,7 @@ const pool = new Pool({
 
 async function seedDatabase() {
     try {
-        console.log('Connecting to database...');
+        
 
         // 1. Create the base table (Module 1)
         await pool.query(`
@@ -44,7 +44,7 @@ async function seedDatabase() {
           ADD COLUMN IF NOT EXISTS earned_leave INT DEFAULT 15,
           ADD COLUMN IF NOT EXISTS wfh_balance INT DEFAULT 24;
         `);
-        console.log('✅ Employees table updated with Module 2 fields.');
+        
 
         // 3. Create the Leaves Table (Added so Kavy's requests have a place to save!)
         await pool.query(`
@@ -60,11 +60,9 @@ async function seedDatabase() {
             status VARCHAR(20) DEFAULT 'Pending'
           );
         `);
-        console.log('✅ Leaves table confirmed in schema.');
 
         // 4. Clear existing data to prevent duplicate email/code errors during seeding
         await pool.query('TRUNCATE TABLE employees CASCADE;');
-        console.log('🧹 Cleared old testing data for a clean slate.');
 
         // 5. Create the Manager first (so we can get their ID)
         const managerPassword = await bcrypt.hash('manager123', 10);
@@ -94,12 +92,6 @@ async function seedDatabase() {
             ]
         );
 
-        console.log('✅ Dummy data successfully inserted!');
-        console.log('\n--- 🧪 TEST ACCOUNTS ---');
-        console.log('Manager: manager@company.com        | pass: manager123');
-        console.log('Emp 1:   kavysanghani331@gmail.com  | pass: kavy123');
-        console.log('Emp 2:   priya@company.com          | pass: emp123');
-        console.log('------------------------\n');
 
     } catch (error) {
         console.error('❌ Error:', error.message);
