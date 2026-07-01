@@ -70,7 +70,6 @@ router.post('/forgot-password', async (req, res) => {
         );
 
         const resetLink = `http://localhost:4200/reset-password?token=${resetToken}`;
-        console.log(`Reset link (mock email): ${resetLink}`);
 
         res.status(200).json({ 
             message: 'Password reset link sent to email',
