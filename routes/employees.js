@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
+const verifyToken = require('../middleware/verifyToken');
 
 // Database connection
 const pool = new Pool({
@@ -62,6 +63,53 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'Email or Employee Code already exists' });
         }
         res.status(500).json({ message: 'Server error while adding employee' });
+    }
+});
+
+// GET /api/employees/me
+router.get('/me', verifyToken, async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                e.id, e.employee_code AS "employeeCode", e.name, e.email, e.role, 
+                e.department, e.designation, e.status, e.joining_date AS "joiningDate",
+                e.casual_leave AS "casualLeave", e.sick_leave AS "sickLeave", 
+                e.earned_leave AS "earnedLeave", e.wfh_balance AS "wfhBalance",
+                e.profile_image AS "profileImage", e.phone,
+                m.name AS manager_name 
+            FROM employees e
+            LEFT JOIN employees m ON e.reporting_manager_id = m.id
+            WHERE e.id = $1;
+        `;
+        const result = await pool.query(query, [req.user.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching current employee:', error);
+        res.status(500).json({ message: 'Server error while fetching profile' });
+    }
+});
+
+// PUT /api/employees/me
+router.put('/me', verifyToken, async (req, res) => {
+    const { phone } = req.body;
+    try {
+        const query = `
+            UPDATE employees 
+            SET phone = $1
+            WHERE id = $2
+            RETURNING id, employee_code AS "employeeCode", name, email, role, department, designation, status, joining_date AS "joiningDate", casual_leave AS "casualLeave", sick_leave AS "sickLeave", earned_leave AS "earnedLeave", wfh_balance AS "wfhBalance", profile_image AS "profileImage", phone;
+        `;
+        const result = await pool.query(query, [phone, req.user.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+        res.json({ message: 'Profile updated successfully', user: result.rows[0] });
+    } catch (error) {
+        console.error('Error updating current employee:', error);
+        res.status(500).json({ message: 'Server error while updating profile' });
     }
 });
 
