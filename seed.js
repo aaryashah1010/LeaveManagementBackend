@@ -42,7 +42,8 @@ async function seedDatabase() {
           ADD COLUMN IF NOT EXISTS casual_leave INT DEFAULT 12,
           ADD COLUMN IF NOT EXISTS sick_leave INT DEFAULT 10,
           ADD COLUMN IF NOT EXISTS earned_leave INT DEFAULT 15,
-          ADD COLUMN IF NOT EXISTS wfh_balance INT DEFAULT 24;
+          ADD COLUMN IF NOT EXISTS wfh_balance INT DEFAULT 24,
+          ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT '+91 98765 43210';
         `);
         
 
