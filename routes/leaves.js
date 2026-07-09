@@ -80,6 +80,7 @@ router.get('/pending', verifyToken, async (req, res) => {
         const query = `
             SELECT 
                 l.id, 
+                e.employee_code AS "employeeCode",
                 e.name, 
                 e.department, 
                 l.leave_type AS "leaveType", 
@@ -91,11 +92,12 @@ router.get('/pending', verifyToken, async (req, res) => {
                 l.status
             FROM leaves l
             JOIN employees e ON l.employee_id = e.id
-            WHERE LOWER(l.status) = 'pending' -- Converts whatever is in DB to lowercase to ensure a match!
-            ORDER BY l.start_date ASC;
+            WHERE LOWER(l.status) = 'pending' 
+            AND e.reporting_manager_id = $1
+            ORDER BY l.created_at DESC;
         `;
 
-        const result = await pool.query(query);
+        const result = await pool.query(query, [req.user.id]);
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error fetching pending leaves:', error);
