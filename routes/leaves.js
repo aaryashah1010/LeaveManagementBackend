@@ -20,11 +20,7 @@ router.post('/apply', verifyToken, async (req, res) => {
         end.setHours(0, 0, 0, 0);
 
         // Validation 1: Start date cannot be in the past
-        if (start < today) {
-            return res.status(400).json({
-                message: 'You cannot apply for leave in the past.'
-            });
-        }
+       
 
         // Validation 2: End date cannot be before start date
         if (end < start) {
@@ -216,6 +212,67 @@ router.get('/my-leaves', verifyToken, async (req, res) => {
     }
 
 });
+
+// =======================================================
+// DELETE /api/leaves/:id
+// Employee can cancel only Pending leave
+// =======================================================
+router.delete('/:id', verifyToken, async (req, res) => {
+
+    console.log("DELETE ROUTE HIT");
+     
+    const leaveId = req.params.id;
+    const employeeId = req.user.id;
+
+    try {
+
+        const leave = await pool.query(
+            `
+            SELECT status
+            FROM leaves
+            WHERE id = $1
+              AND employee_id = $2;
+            `,
+            [leaveId, employeeId]
+        );
+
+        if (leave.rowCount === 0) {
+            return res.status(404).json({
+                message: 'Leave request not found.'
+            });
+        }
+
+        if (leave.rows[0].status !== 'Pending') {
+            return res.status(400).json({
+                message: 'Only pending requests can be cancelled.'
+            });
+        }
+
+        await pool.query(
+            `
+            DELETE FROM leaves
+            WHERE id = $1
+              AND employee_id = $2;
+            `,
+            [leaveId, employeeId]
+        );
+
+        res.json({
+            message: 'Leave cancelled successfully.'
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            message: 'Internal server error'
+        });
+
+    }
+
+});
+
 
 // =======================================================
 // GET /api/leaves/manager-stats
