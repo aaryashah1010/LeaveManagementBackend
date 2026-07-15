@@ -3,19 +3,20 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
 });
 
 async function seedDatabase() {
-    try {
-        
+  try {
 
-        // 1. Create the base table (Module 1)
-        await pool.query(`
+    // =====================================================
+    // Create Employees Table
+    // =====================================================
+    await pool.query(`
           CREATE TABLE IF NOT EXISTS employees (
             id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
@@ -28,8 +29,10 @@ async function seedDatabase() {
           );
         `);
 
-        // 2. Safely add the new Module 2 columns to the existing table
-        await pool.query(`
+    // =====================================================
+    // Add Additional Employee Columns
+    // =====================================================
+    await pool.query(`
           ALTER TABLE employees
           ADD COLUMN IF NOT EXISTS employee_code VARCHAR(50) UNIQUE,
           ADD COLUMN IF NOT EXISTS department VARCHAR(100),
@@ -45,10 +48,11 @@ async function seedDatabase() {
           ADD COLUMN IF NOT EXISTS wfh_balance INT DEFAULT 24,
           ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT '+91 98765 43210';
         `);
-        
 
-        // 3. Create the Leaves Table (Added so Kavy's requests have a place to save!)
-        await pool.query(`
+    // =====================================================
+    // Create Leaves Table
+    // =====================================================
+    await pool.query(`
           CREATE TABLE IF NOT EXISTS leaves (
             id SERIAL PRIMARY KEY,
             employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
@@ -62,43 +66,157 @@ async function seedDatabase() {
           );
         `);
 
-        // 4. Clear existing data to prevent duplicate email/code errors during seeding
-        await pool.query('TRUNCATE TABLE employees CASCADE;');
+    // =====================================================
+    // Create Leave Policies Table
+    // =====================================================
+    await pool.query(`
+          CREATE TABLE IF NOT EXISTS leave_policies (
+            id VARCHAR(50) PRIMARY KEY,
+            type VARCHAR(100) NOT NULL,
+            annual_quota INT DEFAULT 0,
+            carry_forward INT DEFAULT 0,
+            max_consecutive INT DEFAULT 0,
+            notice_required INT DEFAULT 0,
+            paid BOOLEAN DEFAULT true,
+            requires_document BOOLEAN DEFAULT false
+          );
+        `);
 
-        // 5. Create the Manager first (so we can get their ID)
-        const managerPassword = await bcrypt.hash('manager123', 10);
-        const managerRes = await pool.query(
-            `INSERT INTO employees 
-            (employee_code, name, email, password, role, department, designation, joining_date, status) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-            ['EMP-001', 'Aarav Sharma', 'manager@company.com', managerPassword, 'Manager', 'Engineering', 'Engineering Manager', '2020-01-15', 'Active']
-        );
-        const managerId = managerRes.rows[0].id;
+    // =====================================================
+    // Clear Existing Data
+    // =====================================================
+    await pool.query('TRUNCATE TABLE employees CASCADE;');
+    await pool.query('TRUNCATE TABLE leave_policies CASCADE;');
 
-        // 6. Create Employees (Reporting to the Manager)
-        const kavyPassword = await bcrypt.hash('kavy123', 10);
-        const empPassword = await bcrypt.hash('emp123', 10);
+    // =====================================================
+    // Seed Leave Policies
+    // =====================================================
+    await pool.query(`
+      INSERT INTO leave_policies (id, type, annual_quota, carry_forward, max_consecutive, notice_required, paid, requires_document)
+      VALUES 
+      ('P1', 'Casual Leave', 12, 3, 3, 1, true, false),
+      ('P2', 'Sick Leave', 10, 0, 5, 0, true, true),
+      ('P3', 'Earned Leave', 15, 10, 15, 7, true, false),
+      ('P4', 'Work From Home', 24, 0, 5, 1, true, false),
+      ('P5', 'Maternity/Paternity Leave', 90, 0, 90, 30, true, true)
+      ON CONFLICT (id) DO NOTHING;
+    `);
 
-        await pool.query(
-            `INSERT INTO employees 
-            (employee_code, name, email, password, role, department, designation, reporting_manager_id, joining_date, status) 
-            VALUES 
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10),
-            ($11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
-            [
-                // Employee 1
-                'EMP-002', 'Kavy Sanghani', 'kavysanghani331@gmail.com', kavyPassword, 'Employee', 'Engineering', 'Software Developer', managerId, '2023-06-01', 'Active',
-                // Employee 2
-                'EMP-003', 'Priya Patel', 'priya@company.com', empPassword, 'Employee', 'Engineering', 'QA Tester', managerId, '2023-08-15', 'Active'
-            ]
-        );
+    // =====================================================
+    // Create Manager
+    // =====================================================
+    const managerPassword = await bcrypt.hash('manager123', 10);
 
+    const managerRes = await pool.query(
+      `
+            INSERT INTO employees
+            (
+                employee_code,
+                name,
+                email,
+                password,
+                role,
+                department,
+                designation,
+                joining_date,
+                status
+            )
+            VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            RETURNING id
+            `,
+      [
+        'EMP-001',
+        'Aarav Sharma',
+        'manager@company.com',
+        managerPassword,
+        'Manager',
+        'Engineering',
+        'Engineering Manager',
+        '2020-01-15',
+        'Active'
+      ]
+    );
 
-    } catch (error) {
-        console.error('❌ Error:', error.message);
-    } finally {
-        await pool.end();
-    }
+    const managerId = managerRes.rows[0].id;
+
+    // =====================================================
+    // Passwords
+    // =====================================================
+    const kavyPassword = await bcrypt.hash('kavy123', 10);
+    const empPassword = await bcrypt.hash('emp123', 10);
+    const hrPassword = await bcrypt.hash('hr123', 10);
+
+    // =====================================================
+    // Create Employees + HR
+    // =====================================================
+    await pool.query(
+      `
+            INSERT INTO employees
+            (
+                employee_code,
+                name,
+                email,
+                password,
+                role,
+                department,
+                designation,
+                reporting_manager_id,
+                joining_date,
+                status
+            )
+            VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10),
+            ($11,$12,$13,$14,$15,$16,$17,$18,$19,$20),
+            ($21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+            `,
+      [
+
+        // ================= Employee 1 =================
+        'EMP-002',
+        'Kavy Sanghani',
+        'kavysanghani331@gmail.com',
+        kavyPassword,
+        'Employee',
+        'Engineering',
+        'Software Developer',
+        managerId,
+        '2023-06-01',
+        'Active',
+
+        // ================= Employee 2 =================
+        'EMP-003',
+        'Priya Patel',
+        'priya@company.com',
+        empPassword,
+        'Employee',
+        'Engineering',
+        'QA Tester',
+        managerId,
+        '2023-08-15',
+        'Active',
+
+        // ================= HR =================
+        'HR-001',
+        'Anjali Sharma',
+        'hr@company.com',
+        hrPassword,
+        'HR',
+        'Human Resources',
+        'HR Manager',
+        null,
+        '2022-01-10',
+        'Active'
+      ]
+    );
+
+    console.log('✅ Database seeded successfully.');
+
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+  } finally {
+    await pool.end();
+  }
 }
 
 seedDatabase();
